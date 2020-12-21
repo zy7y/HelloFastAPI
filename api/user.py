@@ -1,10 +1,12 @@
+from typing import List, Any, Union
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from core.security import get_password_hash
 from models.user import User
 from core import deps
-from schemas.user import UserCreate
+from schemas.user import UserCreate, UserDB
 
 router = APIRouter()
 
@@ -17,7 +19,7 @@ router = APIRouter()
 """
 
 
-@router.get("/", summary="用户列表")
+@router.get("/", summary="用户列表", response_model=List[UserDB])
 async def users(skip: int = 0, limit: int = 10,
                 db: Session = Depends(deps.get_db),
                 token: str = Depends(deps.get_current_user)
@@ -25,7 +27,7 @@ async def users(skip: int = 0, limit: int = 10,
     return db.query(User).offset(skip).limit(limit).all()
 
 
-@router.post("/", summary="用户新增")
+@router.post("/", summary="用户新增", response_model=UserDB)
 async def user_add(user: UserCreate, db: Session = Depends(deps.get_db),
                    token: str = Depends(deps.get_current_user)
                    ):
@@ -39,33 +41,40 @@ async def user_add(user: UserCreate, db: Session = Depends(deps.get_db),
     user_obj = User(**user.dict())
     db.add(user_obj)
     db.commit()
-    return {"id": user_obj.id, "name": user_obj.name}
+    return user_obj
 
 
-@router.delete("/{user_id}", summary="删除用户")
+@router.delete("/{user_id}", summary="删除用户", response_model=Union[UserDB, Any])
 async def user_delete(user_id: int, db: Session = Depends(deps.get_db),
-                      token: str = Depends(deps.get_current_user)):
-    # 成功删除返回1，删除失败返回0
-    if db.query(User).filter(User.id == user_id).delete():
+                      token: str = Depends(deps.get_current_user)
+                      ):
+    obj = db.query(User).get(user_id)
+    if obj:
+        # 成功删除返回1，删除失败返回0
+        db.delete(obj)
         db.commit()
-        return {"msg": "删除成功！"}
+        return obj
     return {"msg": "用户不存在"}
 
 
-@router.put("/{user_id}", summary="修改用户信息")
+@router.put("/{user_id}", summary="修改用户信息", response_model=Union[UserDB, Any])
 async def user_update(user_id: int, user: UserCreate, db: Session = Depends(deps.get_db),
-                      token: str = Depends(deps.get_current_user)):
-    if not db.query(User).filter(User.id == user_id).update(
-            {"name": user.name, "passwd": get_password_hash(user.passwd)}):
-        return {"msg": "用户不存在"}
-    db.commit()
-    db.flush(User)
-    return {"msg": "更新成功", "user": user}
+                      token: str = Depends(deps.get_current_user)
+                      ):
+    number = db.query(User).filter(User.id == user_id)
+    if number.update({"name": user.name, "passwd": get_password_hash(user.passwd)}):
+        db.commit()
+        user = number.first()
+        return user
+    return {"msg": "用户不存在！"}
 
 
-@router.get("/{user_id}", summary="查询用户信息")
+@router.get("/{user_id}", summary="查询用户信息", response_model=Union[UserDB, Any])
 async def user_info(user_id: int,
                     db: Session = Depends(deps.get_db),
                     token: str = Depends(deps.get_current_user)
                     ):
-    return db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).get(user_id)
+    if user:
+        return user
+    return {"msg": "用户不存在"}
