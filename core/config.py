@@ -27,7 +27,7 @@ class SettingsI(BaseSettings):
     CORS_ORIGINS: List[str] = ["*", ]
 
     # 数据库url配置
-    SQLALCHEMY_DATABASE_URI: str = r"sqlite:///F:\coding\watchlist\watchlist.db"
+    SQLALCHEMY_DATABASE_URI: str = "sqlite:///watchlist.db"
 
 
 setting = SettingsI()
