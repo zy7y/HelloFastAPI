@@ -9,3 +9,4 @@ Python + FastAPI + SQLAlchemy(数据库orm) + Alembic(数据库迁移)
 - https://blog.csdn.net/aimill/article/details/82152173
 # 参考资料
 
+# 测试jenkins监听代码提交运行任务
